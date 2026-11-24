@@ -78,12 +78,8 @@ function loadDrafts() {
 }
 
 let draftTimer = null;
-function persistDraft() {
-  if (!state.activeId) return;
-  state.drafts[state.activeId] = {
-    specs: els.specs.value,
-    ...readListing()
-  };
+
+function writeDrafts() {
   clearTimeout(draftTimer);
   draftTimer = setTimeout(() => {
     try {
@@ -92,6 +88,27 @@ function persistDraft() {
       /* storage full or blocked — edits still live in the page */
     }
   }, 200);
+}
+
+function persistDraft() {
+  if (!state.activeId) return;
+  state.drafts[state.activeId] = {
+    specs: els.specs.value,
+    ...readListing()
+  };
+  writeDrafts();
+}
+
+/** Save a generated listing against the product it was written for. */
+function saveDraftFor(id, listing, specs) {
+  state.drafts[id] = {
+    title: listing.title || '',
+    description: listing.description || '',
+    bullets: Array.isArray(listing.bullets) ? [...listing.bullets] : [],
+    tags: Array.isArray(listing.tags) ? listing.tags.join(', ') : listing.tags || '',
+    specs
+  };
+  writeDrafts();
 }
 
 function readListing() {
@@ -108,6 +125,15 @@ function readListing() {
 function setStatus(message, tone) {
   els.status.textContent = message || '';
   els.status.className = 'status' + (tone ? ` is-${tone}` : '');
+}
+
+/** Turn a network failure into something Chase can act on. */
+function explainError(err) {
+  const message = (err && err.message) || String(err || 'Something went wrong');
+  if (/failed to fetch|networkerror|load failed|fetch failed/i.test(message)) {
+    return 'Cannot reach the local server. Check that npm start is still running, then try again.';
+  }
+  return message;
 }
 
 /* ---------------------------------------------------------------- render */
@@ -186,7 +212,7 @@ function updateTitleCount() {
 function renderPhoto(product) {
   const photo = product?.photo;
   if (photo) {
-    els.photoThumb.src = photo.url;
+    els.photoThumb.src = photo.updatedAt ? `${photo.url}?v=${encodeURIComponent(photo.updatedAt)}` : photo.url;
     els.photoThumb.hidden = false;
     els.photoEmpty.hidden = true;
     els.photoName.textContent = `${photo.name} · ${Math.round(photo.bytes / 1024)} KB`;
@@ -280,10 +306,31 @@ function selectProduct(id) {
   setStatus('');
 }
 
+/** Trust the bytes, not the browser's MIME guess: some sources hand over an empty type. */
+async function sniffImageType(file) {
+  try {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const ascii = (from, to) => String.fromCharCode(...head.slice(from, to));
+    if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'image/jpeg';
+    if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return 'image/png';
+    if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function uploadPhoto(file) {
-  if (!state.activeId) return;
-  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
-    setStatus('Use a PNG, JPG, or WebP image.', 'error');
+  if (!state.activeId) {
+    setStatus('Pick a product from the queue first.', 'error');
+    return;
+  }
+
+  const declaredType = String(file.type || '').toLowerCase();
+  const sniffedType = await sniffImageType(file);
+  const type = sniffedType || (/^image\/(jpeg|png|webp)$/.test(declaredType) ? declaredType : null);
+  if (!type) {
+    setStatus(`"${file.name}" is not a JPEG, PNG, or WebP image.`, 'error');
     return;
   }
 
@@ -292,7 +339,7 @@ async function uploadPhoto(file) {
   try {
     dataUrl = await resizeImage(file, MAX_IMAGE_EDGE);
   } catch {
-    setStatus('Could not read that image. Try another file.', 'error');
+    setStatus(`Could not decode "${file.name}". HEIC and RAW files need exporting as JPEG first.`, 'error');
     return;
   }
 
@@ -300,22 +347,22 @@ async function uploadPhoto(file) {
   els.photoThumb.hidden = false;
   els.photoEmpty.hidden = true;
 
+  const uploadingFor = state.activeId;
   try {
     const res = await fetch('/api/photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: state.activeId, dataUrl, name: file.name })
+      body: JSON.stringify({ productId: uploadingFor, dataUrl, name: file.name })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Upload failed (HTTP ${res.status})`);
 
     state.products = data.products;
-    const product = state.products.find((p) => p.id === state.activeId);
-    renderPhoto(product);
     renderQueue();
-    setStatus(`Photo attached · ${Math.round(data.photo.bytes / 1024)} KB`, 'ok');
+    renderPhoto(state.products.find((p) => p.id === state.activeId));
+    setStatus(`Photo attached · ${data.photo.name} · ${Math.round(data.photo.bytes / 1024)} KB`, 'ok');
   } catch (err) {
-    setStatus(err.message, 'error');
+    setStatus(`Photo upload failed: ${explainError(err)}`, 'error');
     renderPhoto(state.products.find((p) => p.id === state.activeId));
   }
 }
@@ -349,7 +396,11 @@ function resizeImage(file, maxEdge) {
 }
 
 async function generateListing() {
-  if (state.busy || !state.activeId) return;
+  if (state.busy) return;
+  if (!state.activeId) {
+    setStatus('Pick a product from the queue first.', 'error');
+    return;
+  }
   const specs = els.specs.value.trim();
   if (!specs) {
     setStatus('Add supplier specs before generating.', 'error');
@@ -357,6 +408,7 @@ async function generateListing() {
     return;
   }
 
+  const requestProduct = state.activeId;
   state.busy = true;
   els.generate.disabled = true;
   els.generate.textContent = 'Drafting…';
@@ -366,25 +418,32 @@ async function generateListing() {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: state.activeId, specs })
+      body: JSON.stringify({ productId: requestProduct, specs })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Generate failed');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Generate failed (HTTP ${res.status})`);
 
-    fillListing({
+    const listing = {
       title: data.listing.title,
       description: data.listing.description,
       bullets: data.listing.bullets,
       tags: data.listing.seo_tags
-    });
-    persistDraft();
+    };
+    saveDraftFor(requestProduct, listing, specs);
 
     state.spend = data.spend;
     state.products = data.products;
     renderSpend();
     renderQueue();
-    renderPhoto(state.products.find((p) => p.id === state.activeId));
     renderTrace(data.traceEntries, data.spend.calls);
+
+    if (state.activeId !== requestProduct) {
+      setStatus('Listing written for the product you started on. Switch back to see it.', 'ok');
+      return;
+    }
+
+    fillListing(listing);
+    renderPhoto(state.products.find((p) => p.id === state.activeId));
 
     const cost = formatCost(data.usage.costUsd);
     setStatus(
@@ -394,7 +453,7 @@ async function generateListing() {
       'ok'
     );
   } catch (err) {
-    setStatus(err.message, 'error');
+    setStatus(explainError(err), 'error');
   } finally {
     state.busy = false;
     els.generate.disabled = false;
@@ -413,7 +472,7 @@ async function removePhoto() {
     renderQueue();
     setStatus('Photo removed.', 'ok');
   } catch (err) {
-    setStatus(err.message, 'error');
+    setStatus(explainError(err), 'error');
   }
 }
 
@@ -471,6 +530,14 @@ els.dropZone.addEventListener('drop', (event) => {
   if (file) uploadPhoto(file);
 });
 
+// Without this, a drop that misses the zone navigates the tab to the raw image
+// and the whole app disappears.
+for (const type of ['dragover', 'drop']) {
+  window.addEventListener(type, (event) => {
+    if (!els.dropZone.contains(event.target)) event.preventDefault();
+  });
+}
+
 async function init() {
   state.drafts = loadDrafts();
   try {
@@ -503,7 +570,7 @@ async function init() {
       setStatus('Day 1 stub active — sample copy, no credits spent. Real Ember call lands with the API key.');
     }
   } catch (err) {
-    setStatus(err.message, 'error');
+    setStatus(explainError(err), 'error');
   }
 }
 

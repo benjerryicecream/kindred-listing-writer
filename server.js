@@ -91,7 +91,9 @@ function publicProduct(p) {
     retail: p.retail,
     status: p.status,
     specs: p.specs,
-    photo: p.photo ? { name: p.photo.name, url: `/photos/${p.photo.file}`, bytes: p.photo.bytes } : null
+    photo: p.photo
+      ? { name: p.photo.name, url: `/photos/${p.photo.file}`, bytes: p.photo.bytes, updatedAt: p.photo.updatedAt }
+      : null
   };
 }
 
@@ -138,13 +140,23 @@ async function handleGenerate(req, res) {
   });
 }
 
+/** Identify the image by its bytes — the MIME type a browser reports is not trustworthy. */
+function sniffImage(buffer) {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpg';
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer.toString('ascii', 1, 4) === 'PNG') return 'png';
+  if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+    return 'webp';
+  }
+  return null;
+}
+
 async function handlePhoto(req, res) {
   const payload = JSON.parse((await readBody(req)) || '{}');
   const product = products.find((p) => p.id === payload.productId);
   if (!product) return json(res, 400, { error: 'Pick a product from the queue first.' });
 
-  const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(payload.dataUrl || ''));
-  if (!match) return json(res, 400, { error: 'Upload a JPEG, PNG, or WebP image.' });
+  const match = /^data:([^;,]*);base64,([A-Za-z0-9+/=\s]+)$/.exec(String(payload.dataUrl || ''));
+  if (!match) return json(res, 400, { error: 'Upload the photo as a base64 data URL.' });
 
   const buffer = Buffer.from(match[2], 'base64');
   if (!buffer.length) return json(res, 400, { error: 'That image came through empty. Try another file.' });
@@ -152,8 +164,19 @@ async function handlePhoto(req, res) {
     return json(res, 413, { error: 'Photo is larger than 8 MB after resizing. Try a smaller image.' });
   }
 
-  const file = `${product.id}.${match[1] === 'jpeg' ? 'jpg' : match[1]}`;
+  const ext = sniffImage(buffer);
+  if (!ext) {
+    return json(res, 400, {
+      error: 'That file is not a JPEG, PNG, or WebP image. HEIC and RAW need exporting first.'
+    });
+  }
+
+  const file = `${product.id}.${ext}`;
+  const previousFile = product.photo?.file;
   await writeFile(path.join(PHOTO_DIR, file), buffer);
+  if (previousFile && previousFile !== file) {
+    await rm(path.join(PHOTO_DIR, previousFile), { force: true });
+  }
 
   product.photo = {
     name: String(payload.name || 'photo.jpg').slice(0, 120),
