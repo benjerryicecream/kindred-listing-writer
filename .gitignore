@@ -1,0 +1,15 @@
+# Local secrets — never committed.
+.env
+.env.local
+.env.*.local
+
+# Uploaded product photos (local working files)
+data/photos/
+
+# Token trace — kept on disk as hackathon spend evidence, not published
+trace.jsonl
+
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

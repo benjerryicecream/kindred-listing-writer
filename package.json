@@ -1,0 +1,15 @@
+{
+  "name": "kindred-listing-writer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local listing writer for Kindred Goods. Product photo + supplier specs in, editable Shopify-ready listing out. Listing AI: Muse Ember via the Meta Model API.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env server.js"
+  }
+}

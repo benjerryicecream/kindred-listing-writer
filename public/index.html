@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kindred Goods · Listing Writer</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">KG</span>
+        <span class="brand-text">
+          <span class="brand-name">Kindred Goods</span>
+          <span class="brand-sub">Listing Writer</span>
+        </span>
+      </div>
+
+      <span class="badge-ember"><span class="spark" aria-hidden="true"></span>Muse Ember</span>
+
+      <div class="meter" title="Meta Model API spend for this build">
+        <div class="meter-top">
+          <strong id="spend-value">$0.00</strong>
+          <span class="meter-of">of $10.00 used</span>
+        </div>
+        <div class="meter-track"><div class="meter-fill" id="meter-fill"></div></div>
+        <div class="meter-sub">
+          <span id="per-listing">$0.0006 / listing</span>
+          <span class="dot" aria-hidden="true">·</span>
+          <span id="call-count">0 calls</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel queue" aria-labelledby="queue-title">
+        <div class="panel-head">
+          <h2 id="queue-title">Product queue</h2>
+          <span class="count" id="queue-count">5</span>
+        </div>
+        <ul class="queue-list" id="queue"></ul>
+        <p class="queue-foot">Seeded with the five holiday winners.</p>
+      </aside>
+
+      <section class="work">
+        <div class="grid2">
+          <section class="panel" aria-labelledby="in-title">
+            <div class="panel-head">
+              <h2 id="in-title">Product in</h2>
+              <span class="count quiet" id="active-product">—</span>
+            </div>
+
+            <div class="panel-body">
+              <div class="field">
+                <label class="field-label" for="photo-input">Product photo</label>
+                <label class="drop" id="drop-zone" for="photo-input">
+                  <input id="photo-input" type="file" accept="image/png,image/jpeg,image/webp" />
+                  <span class="drop-empty" id="photo-empty">
+                    <span class="drop-icon" aria-hidden="true">↑</span>
+                    <span class="drop-title">Drop a photo or click to choose</span>
+                    <span class="drop-hint">PNG, JPG or WebP · resized to 1024px on upload</span>
+                  </span>
+                  <img class="thumb" id="photo-thumb" alt="Uploaded product photo preview" hidden />
+                </label>
+                <div class="photo-meta" id="photo-meta" hidden>
+                  <span class="photo-name" id="photo-name"></span>
+                  <button type="button" class="link-btn" id="photo-remove">Remove</button>
+                </div>
+              </div>
+
+              <div class="field field-grow">
+                <label class="field-label" for="specs">Supplier specs</label>
+                <textarea id="specs" rows="8" placeholder="Paste the supplier's spec sheet: materials, sizes, features, retail price."></textarea>
+                <p class="field-hint">Only what is written here (and visible in the photo) goes into the listing.</p>
+              </div>
+
+              <div class="actions">
+                <button type="button" class="btn btn-primary" id="generate">Generate listing</button>
+                <span class="kbd-hint">Ctrl + Enter</span>
+              </div>
+              <p class="status" id="status" role="status" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="out-title">
+            <div class="panel-head">
+              <h2 id="out-title">Listing out</h2>
+              <span class="count quiet">editable</span>
+            </div>
+
+            <div class="panel-body">
+              <div class="field">
+                <div class="field-row">
+                  <label class="field-label" for="title">Title</label>
+                  <span class="char-count" id="title-count">0 / 140</span>
+                </div>
+                <input id="title" type="text" maxlength="200" placeholder="The listing title lands here." />
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="description">Description</label>
+                <textarea id="description" rows="8" placeholder="Two or three short paragraphs, warm and plain."></textarea>
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <span class="field-label" id="bullets-label">Feature bullets</span>
+                  <button type="button" class="link-btn" id="add-bullet">Add bullet</button>
+                </div>
+                <div class="bullets" id="bullets" role="group" aria-labelledby="bullets-label"></div>
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="tags">SEO tags</label>
+                <textarea id="tags" class="tags-input" rows="2" placeholder="calming dog bed, donut pet bed, …"></textarea>
+                <p class="field-hint">Comma separated · 5–8 tags.</p>
+              </div>
+
+              <div class="actions actions-out">
+                <button type="button" class="btn btn-ghost" id="save-draft" disabled title="Wires up Day 2">
+                  Save as Shopify draft
+                </button>
+                <span class="pending">wires up Day 2</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel trace" aria-labelledby="trace-title">
+          <div class="panel-head">
+            <h2 id="trace-title">Token trace</h2>
+            <span class="count quiet" id="trace-total">trace.jsonl · 0 lines</span>
+          </div>
+          <div class="panel-body">
+            <div class="trace-last" id="trace-last">
+              <p class="empty">No calls yet. Generate a listing to write the first line of trace.jsonl.</p>
+            </div>
+            <ul class="trace-list" id="trace-list"></ul>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

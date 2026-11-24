@@ -1,0 +1,47 @@
+[
+  {
+    "id": "dog-snuffle-mat",
+    "name": "Dog Snuffle Mat",
+    "category": "pets",
+    "retail": "~$20–35",
+    "status": "Done",
+    "photo": null,
+    "specs": "Feeding enrichment mat, slows fast eaters, folds for travel."
+  },
+  {
+    "id": "interactive-pet-feeder-toy",
+    "name": "Interactive Pet Feeder Toy",
+    "category": "pets",
+    "retail": "~$15–25",
+    "status": "Editing",
+    "photo": null,
+    "specs": "Treat-dispensing puzzle toy, adjustable difficulty."
+  },
+  {
+    "id": "calming-donut-pet-bed",
+    "name": "Calming Donut Pet Bed",
+    "category": "pets",
+    "retail": "$25.96",
+    "status": "Done",
+    "photo": null,
+    "specs": "Round plush cuddler, self-warming, non-slip base, machine washable. Sizes S–XL. Cost $6.49, retail $25.96."
+  },
+  {
+    "id": "jade-roller-gua-sha-set",
+    "name": "Jade Roller + Gua Sha Set",
+    "category": "beauty",
+    "retail": "~$5–15",
+    "status": "Queued",
+    "photo": null,
+    "specs": "Genuine jade roller and gua sha stone, gift box."
+  },
+  {
+    "id": "shiatsu-neck-massager",
+    "name": "Shiatsu Neck Massager with Heat",
+    "category": "wellness",
+    "retail": "~$25–40",
+    "status": "Queued",
+    "photo": null,
+    "specs": "Heated shiatsu neck massager, 3 speeds, USB rechargeable."
+  }
+]
