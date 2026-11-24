@@ -39,14 +39,14 @@ No `npm install` step — there are zero dependencies. Node 22.9 or newer (the s
 `trace.jsonl` at the project root, one line per call:
 
 ```json
-{"timestamp":"2026-11-24T19:02:11.480Z","prompt":"[SYSTEM]\n…\n\n[USER]\n…","tokens_in":2140,"tokens_out":812,"cost_usd":0.0006,"model":"muse-ember-preview","stub":true,"product_id":"calming-donut-pet-bed","product_name":"Calming Donut Pet Bed","has_photo":false,"photo_name":null}
+{"timestamp":"2026-11-24T19:02:11.480Z","prompt":"[SYSTEM]\n…\n\n[USER]\n…","tokens_in":2140,"tokens_out":812,"cost_usd":0.0006,"model":"muse-ember-1.0","stub":true,"product_id":"calming-donut-pet-bed","product_name":"Calming Donut Pet Bed","has_photo":false,"photo_name":null}
 ```
 
 The `prompt` field is the exact system + user text sent for that listing. Image bytes are never written to the trace — only whether a photo was attached. This file is the spend evidence for the hackathon submission; it is deliberately gitignored (it contains prompts and product data) but stays on disk.
 
 ## Cost
 
-$0.0006 per listing at 2,140 tokens in / 812 out, roughly $0.20 per million tokens each way. A $10 budget is about 16,600 listings.
+$0.0006 per listing at 2,140 tokens in / 812 out. Confirmed rates for `muse-ember-1.0` are $0.10 per million input tokens, $0.50 per million output, and $0.004 per million cached input ([Meta docs](https://dev.meta.ai/models/muse-ember)), so a $10 budget covers about 16,000 listings.
 
 ## Layout
 

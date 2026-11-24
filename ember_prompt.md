@@ -2,7 +2,7 @@
 
 The source of truth lives in [`lib/ember.js`](lib/ember.js) (`SYSTEM_PROMPT`, `OUTPUT_SCHEMA`, `buildUserPrompt`). This file mirrors it in readable form for review and for the hackathon write-up. If the two ever disagree, the code wins.
 
-Model: **Muse Ember via the Meta Model API** (`EMBER_MODEL`, default `muse-ember-preview`).
+Model: **Muse Ember via the Meta Model API** — `muse-ember-1.0` (`EMBER_MODEL`), with prices confirmed against https://dev.meta.ai/models/muse-ember on 24 Nov 2026.
 
 ## System prompt
 
@@ -91,4 +91,4 @@ Fixed stub usage: 2,140 tokens in, 812 out, $0.0006 — so the cost meter and tr
 
 1. Put the key in `.env`: `META_MODEL_API_KEY=…`
 2. Confirm `EMBER_BASE_URL` / `EMBER_MODEL` and the response shape against Meta's Model API docs (the request currently uses the OpenAI-compatible chat-completions shape with `response_format: json_schema`).
-3. Restart `npm start`. `isStubMode()` turns false and `callEmber()` runs; cost comes from the returned token usage at $0.20 / million tokens each way.
+3. Restart `npm start`. `isStubMode()` turns false and `callEmber()` runs; cost comes from the returned token usage at the confirmed $0.10 / million input and $0.50 / million output ($0.004 cached input).
