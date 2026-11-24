@@ -236,6 +236,10 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Kindred Goods · Listing Writer → http://localhost:${PORT}`);
-  console.log(`Muse Ember: ${isStubMode() ? 'STUB (no META_MODEL_API_KEY in .env — no credits spent)' : `live via ${MODEL_LABEL}`}`);
+  console.log(`Kindred Goods / Listing Writer -> http://localhost:${PORT}`);
+  console.log(
+    isStubMode()
+      ? 'Muse Ember: STUB (no META_MODEL_API_KEY in .env - no credits spent)'
+      : `Muse Ember: live via ${MODEL_LABEL}`
+  );
 });
