@@ -10,9 +10,9 @@ Everything runs on this machine — one Node process, one page on localhost. No 
 
 The page, the prompt, the strict JSON schema, the token trace, and the product queue all work. The queue ships with the five seeded holiday winners, and you can add your own.
 
-The Ember call is **stubbed** until `META_MODEL_API_KEY` lands in `.env`: `POST /api/generate` returns a realistic sample listing for the Calming Donut Pet Bed, with fixed token counts (2,140 in / 812 out) and a fixed $0.0006 cost. The moment that key exists, `lib/ember.js` calls the Meta Model API instead — nothing else changes.
+Ember calls are **live** on `muse-ember-1.0`. If `META_MODEL_API_KEY` is absent, `lib/ember.js` falls back to a clearly marked stub so the page still works without credentials — no fake data reaches the store.
 
-This build makes **no Shopify calls**. "Save as Shopify draft" is on screen but disabled; it needs `SHOPIFY_STORE_DOMAIN` and an Admin API token in `.env`.
+Shopify is **connected** via an OAuth token in `.env`. Saving creates a draft product the first time and updates that same product afterwards; nothing is ever published.
 
 ## Run it
 
@@ -100,7 +100,8 @@ reports, with cache hits billed at the cached rate — so it sits slightly under
 ```
 kindred-listing-writer/
   server.js            local HTTP server + /api routes
-  lib/ember.js         system prompt, JSON schema, the one Ember call site (STUB marked here)
+  lib/ember.js         system prompt, JSON schema, the one Ember call site
+  lib/shopify.js       draft save (productCreate / productUpdate, always DRAFT)
   lib/trace.js         appends/reads trace.jsonl, sums spend
   public/index.html    the single page
   public/app.js        queue, upload, generate, trace panel
@@ -123,7 +124,7 @@ screen recorder (no OBS, no ffmpeg) and the browser used here is not signed in t
 ## Next
 
 1. **Real Ember call** — needs `META_MODEL_API_KEY` in `.env` and the $10 credit on that account. Then confirm the endpoint and request shape against Meta's Model API docs, run one listing, and check the trace line shows real usage.
-2. **Save as Shopify draft** — needs `SHOPIFY_STORE_DOMAIN` and an Admin API token with product write access, both in `.env`. The button stays disabled until then.
+2. **Save as Shopify draft** — live; one draft per product, updates on repeat saves, never publishes.
 3. **Spend check** — total `cost_usd` from `trace.jsonl`.
 
 ## License
