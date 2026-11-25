@@ -24,6 +24,34 @@ Then open <http://localhost:4173>.
 
 No `npm install` step — there are zero dependencies. Node 22.9 or newer (the start script uses `--env-file-if-exists`).
 
+## Setup
+
+Copy `.env.example` to `.env` and fill in what you use:
+
+| Variable | What it is |
+|---|---|
+| `META_MODEL_API_KEY` | Meta Model API key for Muse Ember |
+| `SHOPIFY_STORE_DOMAIN` | the store, e.g. `your-store.myshopify.com` |
+| `SHOPIFY_ADMIN_TOKEN` | Admin API token with `read_products, write_products` |
+| `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` | only for the one-time OAuth exchange at `/auth/shopify` |
+
+`/auth/shopify` runs the OAuth exchange and writes `SHOPIFY_ADMIN_TOKEN` into `.env` itself — the token is
+never shown on screen or logged. `.env` is gitignored and no secret is committed; the Shopify side only
+ever sets `status: DRAFT`, so nothing can publish.
+
+## How it works
+
+1. Pick a product in the queue, or add one.
+2. Drop a photo and paste the supplier specs.
+3. **Generate listing** — `POST /api/generate` sends the system prompt, the specs and the photo (base64
+   `image_url`) to Muse Ember with a strict JSON schema, and normalises the reply into title, description,
+   bullets and SEO tags.
+4. Edit anything; edits are kept per product.
+5. **Save as Shopify draft** — `POST /api/shopify/draft` turns the listing into `descriptionHtml`
+   (paragraphs plus a bullet list), sets `status: DRAFT`, and calls `productCreate` the first time or
+   `productUpdate` on the same product afterwards.
+6. Every call appends a line to `trace.jsonl`; the cost meter adds them up.
+
 ## What works
 
 - **Product queue** — the five holiday winners, each with a status (Done / Editing / Queued). Click one to load it.
@@ -48,7 +76,24 @@ The `prompt` field is the exact system + user text sent for that listing. Image 
 
 ## Cost
 
-$0.0006 per listing at 2,140 tokens in / 812 out. Confirmed rates for `muse-ember-1.0` are $0.10 per million input tokens, $0.50 per million output, and $0.004 per million cached input ([Meta docs](https://dev.meta.ai/models/muse-ember)), so a $10 budget covers about 16,000 listings.
+Real numbers from `trace.jsonl`, one row per draft currently in the store (its last generation):
+
+| Listing | Tokens in | Tokens out | Cost |
+|---|---:|---:|---:|
+| Calming Donut Pet Bed | 398 | 1,691 | $0.000850 |
+| Dog Snuffle Mat | 399 | 1,440 | $0.000760 |
+| Interactive Pet Feeder Toy | 396 | 2,600 | $0.001340 |
+| Jade Roller + Gua Sha Set | 402 | 2,535 | $0.001308 |
+| Shiatsu Neck Massager with Heat | 404 | 2,302 | $0.001191 |
+| **All five** | **1,999** | **10,568** | **$0.005449** |
+
+**Whole build: $0.018521 of the $10 budget, $9.981479 left.** That total covers the five listings plus
+regenerations and one image-path test; [docs/trace.md](docs/trace.md) lists every call with a running
+total. 16 paid calls, plus 6 stub rows at $0.0006 each from Day 1 (canned responses, no API call).
+
+Rates for `muse-ember-1.0`: $0.10 / million input tokens, $0.50 / million output, $0.004 / million cached
+input ([Meta docs](https://dev.meta.ai/models/muse-ember)). Cost is computed from the usage each response
+reports, with cache hits billed at the cached rate — so it sits slightly under a flat in/out multiplication.
 
 ## Layout
 
@@ -68,6 +113,12 @@ kindred-listing-writer/
   trace.jsonl          local token trace (gitignored)
   .env                 local API key slot (gitignored)
 ```
+
+## Demo
+
+A 2:40 recording script — shot list, exact clicks and narration — is in
+[docs/demo-script.md](docs/demo-script.md). It is a script rather than a video because this machine has no
+screen recorder (no OBS, no ffmpeg) and the browser used here is not signed in to the Shopify admin.
 
 ## Next
 
