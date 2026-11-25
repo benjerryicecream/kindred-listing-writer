@@ -22,6 +22,9 @@ const PHOTO_DIR = path.join(DATA_DIR, 'photos');
 const PRODUCTS_PATH = path.join(DATA_DIR, 'products.json');
 const SEED_PATH = path.join(DATA_DIR, 'products.seed.json');
 const PORT = Number(process.env.PORT || 4173);
+const SHOPIFY_CLIENT_ID = (process.env.SHOPIFY_CLIENT_ID || '').trim();
+const SHOPIFY_CLIENT_SECRET = (process.env.SHOPIFY_CLIENT_SECRET || '').trim();
+const OAUTH_REDIRECT = `http://localhost:${PORT}/auth/callback`;
 const MAX_BODY = 12 * 1024 * 1024;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
@@ -50,6 +53,48 @@ function json(res, status, payload) {
 function sendText(res, status, text) {
   res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end(text);
+}
+
+const escapeHtml = (value) =>
+  String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function sendHtml(res, status, html) {
+  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(html);
+}
+
+/** Small standalone page for the OAuth round trip. Never renders a token. */
+function oauthPage(title, detail) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8" />
+<title>${escapeHtml(title)}</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f3ef;color:#1d211f;
+       font:15px/1.55 "Segoe UI",system-ui,sans-serif}
+  .card{max-width:520px;padding:28px 30px;background:#fffdfb;border:1px solid #e7e1d9;border-radius:14px;
+        box-shadow:0 18px 36px -30px rgba(29,33,31,.55)}
+  h1{margin:0 0 8px;font:600 20px/1.3 "Iowan Old Style",Palatino,Georgia,serif}
+  p{margin:0 0 16px;color:#3d4340}
+  a{color:#a8482a;font-weight:600;text-decoration:none}
+  a:hover{text-decoration:underline}
+</style></head><body><div class="card"><h1>${escapeHtml(title)}</h1><p>${detail}</p>
+<p><a href="/">Back to the listing writer</a></p></div></body></html>`;
+}
+
+/** Replace KEY=... in .env (or append it). The value is never logged. */
+async function writeEnvValue(key, value) {
+  const envPath = path.join(ROOT, '.env');
+  let text = '';
+  try {
+    text = await readFile(envPath, 'utf8');
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+  const line = `${key}=${value}`;
+  const pattern = new RegExp(`^${key}=.*$`, 'm');
+  const next = pattern.test(text)
+    ? text.replace(pattern, line)
+    : `${text.replace(/\s*$/, '')}\n${line}\n`;
+  await writeFile(envPath, next, 'utf8');
 }
 
 function readBody(req) {
@@ -281,6 +326,79 @@ const server = createServer(async (req, res) => {
   const pathname = url.pathname;
 
   try {
+    if (req.method === 'GET' && pathname === '/auth/shopify') {
+      if (!SHOPIFY_CLIENT_ID) return sendText(res, 500, 'SHOPIFY_CLIENT_ID is missing from .env');
+      if (!STORE) return sendText(res, 500, 'SHOPIFY_STORE_DOMAIN is missing from .env');
+
+      const authorize = new URL(`https://${STORE}/admin/oauth/authorize`);
+      authorize.searchParams.set('client_id', SHOPIFY_CLIENT_ID);
+      authorize.searchParams.set('scope', 'read_products,write_products');
+      authorize.searchParams.set('redirect_uri', OAUTH_REDIRECT);
+      res.writeHead(302, { Location: authorize.toString() });
+      return res.end();
+    }
+
+    if (req.method === 'GET' && pathname === '/auth/callback') {
+      const code = url.searchParams.get('code');
+      const shop = url.searchParams.get('shop');
+      const denial = url.searchParams.get('error');
+
+      if (denial) {
+        return sendHtml(res, 400, oauthPage('Install cancelled', `Shopify returned <code>${escapeHtml(denial)}</code>. Nothing was stored.`));
+      }
+      if (shop && shop !== STORE) {
+        return sendHtml(res, 400, oauthPage('Wrong store', `This build is configured for <code>${escapeHtml(STORE)}</code>, not <code>${escapeHtml(shop)}</code>. Nothing was stored.`));
+      }
+      if (!code) {
+        return sendHtml(res, 400, oauthPage('Missing code', 'Shopify did not send an authorization code. Nothing was stored.'));
+      }
+      if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
+        return sendHtml(res, 500, oauthPage('Client credentials missing', 'Add SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET to .env, then retry.'));
+      }
+
+      const exchange = await fetch(`https://${STORE}/admin/oauth/access_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          client_id: SHOPIFY_CLIENT_ID,
+          client_secret: SHOPIFY_CLIENT_SECRET,
+          code
+        })
+      });
+
+      const raw = await exchange.text();
+      let payload = null;
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        payload = null;
+      }
+
+      if (!exchange.ok || !payload?.access_token) {
+        const hint = raw.slice(0, 200).replace(/\s+/g, ' ');
+        return sendHtml(
+          res,
+          502,
+          oauthPage(
+            'Token exchange failed',
+            `Shopify returned HTTP ${exchange.status}. <code>${escapeHtml(hint)}</code><br />Nothing was stored.`
+          )
+        );
+      }
+
+      await writeEnvValue('SHOPIFY_ADMIN_TOKEN', payload.access_token);
+      process.env.SHOPIFY_ADMIN_TOKEN = payload.access_token;
+
+      return sendHtml(
+        res,
+        200,
+        oauthPage(
+          'Shopify connected',
+          `Access token stored for <code>${escapeHtml(STORE)}</code> with scope <code>${escapeHtml(payload.scope || 'unknown')}</code>. The token is in the gitignored .env and is not shown here.`
+        )
+      );
+    }
+
     if (req.method === 'GET' && pathname === '/api/bootstrap') {
       const { entries, total, spend } = await traceState(6);
       return json(res, 200, {

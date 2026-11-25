@@ -533,7 +533,6 @@ async function saveShopifyDraft() {
   };
 
   els.saveDraft.disabled = true;
-  const label = els.saveDraft.textContent;
   els.saveDraft.textContent = 'Saving…';
   setStatus('Saving a draft in Shopify…');
 
@@ -557,7 +556,7 @@ async function saveShopifyDraft() {
     setStatus(explainError(err), 'error');
     updateShopifyButton();
   } finally {
-    els.saveDraft.textContent = label || 'Save as Shopify draft';
+    els.saveDraft.textContent = 'Save as Shopify draft';
   }
 }
 
