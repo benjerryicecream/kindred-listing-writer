@@ -6,13 +6,13 @@ The listing AI is **Muse Ember, via the Meta Model API**.
 
 Everything runs on this machine — one Node process, one page on localhost. No cloud hosting, no deploy step, no dependencies, no build.
 
-## Day 1 status
+## Status
 
-The page, the prompt, the strict JSON schema, and the token trace are built and working. The Ember call is **stubbed** while the $10 of Meta Model API credits are pending: `POST /api/generate` returns a realistic sample listing for the Calming Donut Pet Bed, with fixed token counts (2,140 in / 812 out) and a fixed $0.0006 cost.
+The page, the prompt, the strict JSON schema, the token trace, and the product queue all work. The queue ships with the five seeded holiday winners, and you can add your own.
 
-The stub is one env var away from the real thing. Drop `META_MODEL_API_KEY` into `.env` and `lib/ember.js` calls the Meta Model API instead — nothing else changes.
+The Ember call is **stubbed** until `META_MODEL_API_KEY` lands in `.env`: `POST /api/generate` returns a realistic sample listing for the Calming Donut Pet Bed, with fixed token counts (2,140 in / 812 out) and a fixed $0.0006 cost. The moment that key exists, `lib/ember.js` calls the Meta Model API instead — nothing else changes.
 
-This build makes **no Shopify calls**. "Save as Shopify draft" is on screen but disabled; it wires up on Day 2.
+This build makes **no Shopify calls**. "Save as Shopify draft" is on screen but disabled; it needs `SHOPIFY_STORE_DOMAIN` and an Admin API token in `.env`.
 
 ## Run it
 
@@ -27,6 +27,7 @@ No `npm install` step — there are zero dependencies. Node 22.9 or newer (the s
 ## What works
 
 - **Product queue** — the five holiday winners, each with a status (Done / Editing / Queued). Click one to load it.
+- **Add products** — "+ Add product" takes a name, supplier specs, and an optional photo. New products join the queue, generate like the seeded ones, persist across reloads and restarts, and can be removed. The five seeded products stay.
 - **Photo upload** — drag or click, thumbnail preview, resized to 1024 px in the browser and stored in `data/photos/`. The photo is attached to that product, so it survives a reload.
 - **Supplier specs** — editable per product; only what is written there (plus what the photo shows) is allowed into the listing.
 - **Generate listing** — fills the editable title, description, bullets, and SEO tags.
@@ -58,18 +59,19 @@ kindred-listing-writer/
   public/index.html    the single page
   public/app.js        queue, upload, generate, trace panel
   public/styles.css
-  data/products.json   the five seeded products and their specs
+  data/products.seed.json  the five seeded products and their specs
+  data/products.json   runtime queue state (gitignored, created on first run)
   data/photos/         uploaded photos (gitignored)
   ember_prompt.md      the prompt and schema in readable form
   trace.jsonl          local token trace (gitignored)
   .env                 local API key slot (gitignored)
 ```
 
-## Day 2
+## Next
 
-1. **Real Ember call** — put the key in `.env`, confirm the endpoint and request shape against Meta's Model API docs, run one listing, confirm the trace line shows real usage.
-2. **Save as Shopify draft** — enable the button, POST the edited listing to the Shopify Admin API as a draft product, keep the Shopify token in `.env`.
-3. **Spend check** — total `cost_usd` from `trace.jsonl` for the submission.
+1. **Real Ember call** — needs `META_MODEL_API_KEY` in `.env` and the $10 credit on that account. Then confirm the endpoint and request shape against Meta's Model API docs, run one listing, and check the trace line shows real usage.
+2. **Save as Shopify draft** — needs `SHOPIFY_STORE_DOMAIN` and an Admin API token with product write access, both in `.env`. The button stays disabled until then.
+3. **Spend check** — total `cost_usd` from `trace.jsonl`.
 
 ## License
 

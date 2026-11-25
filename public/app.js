@@ -13,6 +13,16 @@ const els = {
   callCount: document.getElementById('call-count'),
   queue: document.getElementById('queue'),
   queueCount: document.getElementById('queue-count'),
+  addProduct: document.getElementById('add-product'),
+  addDialog: document.getElementById('add-product-dialog'),
+  addForm: document.getElementById('add-product-form'),
+  addName: document.getElementById('new-name'),
+  addSpecs: document.getElementById('new-specs'),
+  addPhoto: document.getElementById('new-photo'),
+  addPhotoPreview: document.getElementById('new-photo-preview'),
+  addError: document.getElementById('add-product-error'),
+  addCancel: document.getElementById('add-product-cancel'),
+  addSave: document.getElementById('add-product-save'),
   activeProduct: document.getElementById('active-product'),
   dropZone: document.getElementById('drop-zone'),
   photoInput: document.getElementById('photo-input'),
@@ -154,13 +164,29 @@ function renderQueue() {
 
     const meta = el('span', 'queue-meta');
     meta.append(el('span', `queue-dot ${product.photo ? 'has-photo' : 'no-photo'}`));
-    meta.append(el('span', null, product.category));
-    meta.append(el('span', 'dot', '·'));
-    meta.append(el('span', null, product.retail));
+    const facts = [product.category, product.retail].filter(Boolean);
+    facts.forEach((fact, index) => {
+      if (index) meta.append(el('span', 'dot', '·'));
+      meta.append(el('span', null, fact));
+    });
 
     item.append(top, meta);
-    const li = el('li');
+
+    const li = el('li', 'queue-li');
     li.append(item);
+
+    if (!product.seeded) {
+      const remove = el('button', 'queue-remove', '×');
+      remove.type = 'button';
+      remove.title = `Remove ${product.name}`;
+      remove.setAttribute('aria-label', `Remove ${product.name}`);
+      remove.addEventListener('click', (event) => {
+        event.stopPropagation();
+        deleteProduct(product.id);
+      });
+      li.append(remove);
+    }
+
     els.queue.append(li);
   }
 }
@@ -323,7 +349,7 @@ async function sniffImageType(file) {
 async function uploadPhoto(file) {
   if (!state.activeId) {
     setStatus('Pick a product from the queue first.', 'error');
-    return;
+    return false;
   }
 
   const declaredType = String(file.type || '').toLowerCase();
@@ -331,7 +357,7 @@ async function uploadPhoto(file) {
   const type = sniffedType || (/^image\/(jpeg|png|webp)$/.test(declaredType) ? declaredType : null);
   if (!type) {
     setStatus(`"${file.name}" is not a JPEG, PNG, or WebP image.`, 'error');
-    return;
+    return false;
   }
 
   setStatus('Reading photo…');
@@ -340,7 +366,7 @@ async function uploadPhoto(file) {
     dataUrl = await resizeImage(file, MAX_IMAGE_EDGE);
   } catch {
     setStatus(`Could not decode "${file.name}". HEIC and RAW files need exporting as JPEG first.`, 'error');
-    return;
+    return false;
   }
 
   els.photoThumb.src = dataUrl;
@@ -361,9 +387,11 @@ async function uploadPhoto(file) {
     renderQueue();
     renderPhoto(state.products.find((p) => p.id === state.activeId));
     setStatus(`Photo attached · ${data.photo.name} · ${Math.round(data.photo.bytes / 1024)} KB`, 'ok');
+    return true;
   } catch (err) {
     setStatus(`Photo upload failed: ${explainError(err)}`, 'error');
     renderPhoto(state.products.find((p) => p.id === state.activeId));
+    return false;
   }
 }
 
@@ -476,6 +504,103 @@ async function removePhoto() {
   }
 }
 
+/* ------------------------------------------------------- products: add/remove */
+
+function openAddDialog() {
+  els.addForm.reset();
+  els.addError.textContent = '';
+  els.addPhotoPreview.hidden = true;
+  els.addPhotoPreview.removeAttribute('src');
+  els.addDialog.showModal();
+  els.addName.focus();
+}
+
+function closeAddDialog() {
+  if (els.addDialog.open) els.addDialog.close();
+}
+
+async function submitNewProduct(event) {
+  event.preventDefault();
+
+  const name = els.addName.value.trim().replace(/\s+/g, ' ');
+  const specs = els.addSpecs.value.trim();
+  const file = els.addPhoto.files?.[0] || null;
+
+  if (!name) {
+    els.addError.textContent = 'Give the product a name.';
+    els.addName.focus();
+    return;
+  }
+  if (!specs) {
+    els.addError.textContent = 'Supplier specs are required — the listing may only use what is written there.';
+    els.addSpecs.focus();
+    return;
+  }
+
+  els.addError.textContent = '';
+  els.addSave.disabled = true;
+  els.addSave.textContent = 'Adding…';
+
+  try {
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, specs })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Could not add the product (HTTP ${res.status})`);
+
+    const created = data.product;
+    state.products = data.products;
+    closeAddDialog();
+    selectProduct(created.id);
+
+    if (file) {
+      const attached = await uploadPhoto(file);
+      setStatus(
+        attached ? `Added ${created.name} with a photo.` : `Added ${created.name}, but the photo did not attach.`,
+        attached ? 'ok' : 'error'
+      );
+    } else {
+      setStatus(`Added ${created.name}.`, 'ok');
+    }
+  } catch (err) {
+    els.addError.textContent = explainError(err);
+  } finally {
+    els.addSave.disabled = false;
+    els.addSave.textContent = 'Add product';
+  }
+}
+
+async function deleteProduct(id) {
+  const product = state.products.find((p) => p.id === id);
+  if (!product || product.seeded) return;
+  if (!window.confirm(`Remove "${product.name}" from the queue? Its photo goes too. Shopify drafts are not touched.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Could not remove the product (HTTP ${res.status})`);
+
+    state.products = data.products;
+    delete state.drafts[id];
+    writeDrafts();
+
+    if (state.activeId === id) {
+      state.activeId = null;
+      if (state.products[0]) selectProduct(state.products[0].id);
+      else renderQueue();
+    } else {
+      renderQueue();
+    }
+    setStatus(`Removed ${product.name}.`, 'ok');
+  } catch (err) {
+    setStatus(explainError(err), 'error');
+  }
+}
+
 /* ---------------------------------------------------------------- wiring */
 
 els.title.addEventListener('input', () => {
@@ -494,6 +619,22 @@ els.addBullet.addEventListener('click', () => {
 });
 
 els.generate.addEventListener('click', generateListing);
+
+els.addProduct.addEventListener('click', openAddDialog);
+els.addCancel.addEventListener('click', closeAddDialog);
+els.addForm.addEventListener('submit', submitNewProduct);
+els.addPhoto.addEventListener('change', () => {
+  const file = els.addPhoto.files?.[0];
+  if (!file) {
+    els.addPhotoPreview.hidden = true;
+    els.addPhotoPreview.removeAttribute('src');
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  els.addPhotoPreview.src = url;
+  els.addPhotoPreview.hidden = false;
+  els.addPhotoPreview.onload = () => URL.revokeObjectURL(url);
+});
 els.photoRemove.addEventListener('click', (event) => {
   event.preventDefault();
   event.stopPropagation();

@@ -6,7 +6,8 @@
     "retail": "~$20–35",
     "status": "Done",
     "photo": null,
-    "specs": "Feeding enrichment mat, slows fast eaters, folds for travel."
+    "specs": "Feeding enrichment mat, slows fast eaters, folds for travel.",
+    "seeded": true
   },
   {
     "id": "interactive-pet-feeder-toy",
@@ -15,7 +16,8 @@
     "retail": "~$15–25",
     "status": "Editing",
     "photo": null,
-    "specs": "Treat-dispensing puzzle toy, adjustable difficulty."
+    "specs": "Treat-dispensing puzzle toy, adjustable difficulty.",
+    "seeded": true
   },
   {
     "id": "calming-donut-pet-bed",
@@ -24,7 +26,8 @@
     "retail": "$25.96",
     "status": "Done",
     "photo": null,
-    "specs": "Round plush cuddler, self-warming, non-slip base, machine washable. Sizes S–XL. Cost $6.49, retail $25.96."
+    "specs": "Round plush cuddler, self-warming, non-slip base, machine washable. Sizes S–XL. Cost $6.49, retail $25.96.",
+    "seeded": true
   },
   {
     "id": "jade-roller-gua-sha-set",
@@ -33,7 +36,8 @@
     "retail": "~$5–15",
     "status": "Queued",
     "photo": null,
-    "specs": "Genuine jade roller and gua sha stone, gift box."
+    "specs": "Genuine jade roller and gua sha stone, gift box.",
+    "seeded": true
   },
   {
     "id": "shiatsu-neck-massager",
@@ -42,6 +46,7 @@
     "retail": "~$25–40",
     "status": "Queued",
     "photo": null,
-    "specs": "Heated shiatsu neck massager, 3 speeds, USB rechargeable."
+    "specs": "Heated shiatsu neck massager, 3 speeds, USB rechargeable.",
+    "seeded": true
   }
 ]

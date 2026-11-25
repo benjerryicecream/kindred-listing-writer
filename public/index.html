@@ -39,7 +39,10 @@
           <span class="count" id="queue-count">5</span>
         </div>
         <ul class="queue-list" id="queue"></ul>
-        <p class="queue-foot">Seeded with the five holiday winners.</p>
+        <div class="queue-add">
+          <button type="button" class="btn btn-ghost btn-block" id="add-product">+ Add product</button>
+        </div>
+        <p class="queue-foot">Five seeded winners, plus anything you add.</p>
       </aside>
 
       <section class="work">
@@ -140,6 +143,37 @@
         </section>
       </section>
     </main>
+
+    <dialog class="dialog" id="add-product-dialog" aria-labelledby="add-product-title">
+      <form id="add-product-form" novalidate>
+        <h2 id="add-product-title">Add a product</h2>
+        <p class="dialog-sub">Name it, paste the supplier specs, add a photo if you have one.</p>
+
+        <div class="field">
+          <label class="field-label" for="new-name">Product name</label>
+          <input id="new-name" type="text" maxlength="120" placeholder="e.g. Ceramic Slow Feeder Bowl" />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="new-specs">Supplier specs</label>
+          <textarea id="new-specs" rows="5" placeholder="Materials, sizes, features, retail price."></textarea>
+          <p class="field-hint">Required — the listing may only use what is written here.</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="new-photo">Photo (optional)</label>
+          <input id="new-photo" type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
+          <img class="thumb thumb-sm" id="new-photo-preview" alt="Selected photo preview" hidden />
+        </div>
+
+        <p class="dialog-error" id="add-product-error" role="alert"></p>
+
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-ghost" id="add-product-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="add-product-save">Add product</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="/app.js" type="module"></script>
   </body>
