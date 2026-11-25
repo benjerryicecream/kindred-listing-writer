@@ -89,7 +89,8 @@ Real numbers from `trace.jsonl`, one row per draft currently in the store (its l
 
 **Whole build: $0.018521 of the $10 budget, $9.981479 left.** That total covers the five listings plus
 regenerations and one image-path test; [docs/trace.md](docs/trace.md) lists every call with a running
-total. 16 paid calls, plus 6 stub rows at $0.0006 each from Day 1 (canned responses, no API call).
+total. 16 paid calls, plus 6 stub rows at $0.0006 each from Day 1 (canned responses, no API call — the
+app's meter counts those, so it reads $0.022121 and $9.977879 left).
 
 Rates for `muse-ember-1.0`: $0.10 / million input tokens, $0.50 / million output, $0.004 / million cached
 input ([Meta docs](https://dev.meta.ai/models/muse-ember)). Cost is computed from the usage each response

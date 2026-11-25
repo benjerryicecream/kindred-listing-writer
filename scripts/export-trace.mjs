@@ -80,7 +80,8 @@ Exported from \`trace.jsonl\` on ${new Date().toISOString().slice(0, 19).replace
 **Budget:** $${BUDGET.toFixed(2)} · **real spend:** ${money(realSpend)} · **stub rows:** ${money(stubSpend)}
 (no API call, Day 1 canned responses) · **total:** ${money(totalSpend)} · **remaining:** ${money(Math.max(BUDGET - realSpend, 0))}
 
-${real.length} paid calls to \`muse-ember-1.0\` and ${stub.length} stub calls. Prices: $0.10 / Mtok input,
+The running-total column counts every row, stub included; **remaining** uses real spend only, because
+stub rows never call the API. ${real.length} paid calls to \`muse-ember-1.0\` and ${stub.length} stub calls. Prices: $0.10 / Mtok input,
 $0.50 / Mtok output, $0.004 / Mtok cached input ([Meta docs](https://dev.meta.ai/models/muse-ember)).
 Cost is computed from the token counts each response reports.
 

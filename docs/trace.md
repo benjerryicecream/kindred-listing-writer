@@ -1,12 +1,13 @@
 # Ember token trace
 
-Exported from `trace.jsonl` on 2026-11-25 20:07:28 UTC by
+Exported from `trace.jsonl` on 2026-11-25 20:09:30 UTC by
 `node scripts/export-trace.mjs`. One row per Generate call made by the app.
 
 **Budget:** $10.00 · **real spend:** $0.018521 · **stub rows:** $0.003600
 (no API call, Day 1 canned responses) · **total:** $0.022121 · **remaining:** $9.981479
 
-16 paid calls to `muse-ember-1.0` and 6 stub calls. Prices: $0.10 / Mtok input,
+The running-total column counts every row, stub included; **remaining** uses real spend only, because
+stub rows never call the API. 16 paid calls to `muse-ember-1.0` and 6 stub calls. Prices: $0.10 / Mtok input,
 $0.50 / Mtok output, $0.004 / Mtok cached input ([Meta docs](https://dev.meta.ai/models/muse-ember)).
 Cost is computed from the token counts each response reports.
 
