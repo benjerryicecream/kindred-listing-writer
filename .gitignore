@@ -9,6 +9,9 @@ data/photos/
 # Runtime queue state — seeded from data/products.seed.json on first run
 data/products.json
 
+# Generated listings (server-side persistence, local only)
+data/listings.json
+
 # Local product id → Shopify draft id map
 data/shopify-drafts.json
 

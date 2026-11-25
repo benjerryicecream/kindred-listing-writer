@@ -21,6 +21,7 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PHOTO_DIR = path.join(DATA_DIR, 'photos');
 const PRODUCTS_PATH = path.join(DATA_DIR, 'products.json');
 const SEED_PATH = path.join(DATA_DIR, 'products.seed.json');
+const LISTINGS_PATH = path.join(DATA_DIR, 'listings.json');
 const PORT = Number(process.env.PORT || 4173);
 const SHOPIFY_CLIENT_ID = (process.env.SHOPIFY_CLIENT_ID || '').trim();
 const SHOPIFY_CLIENT_SECRET = (process.env.SHOPIFY_CLIENT_SECRET || '').trim();
@@ -44,6 +45,7 @@ const MIME = {
 await mkdir(PHOTO_DIR, { recursive: true });
 
 let products = await loadProducts();
+let listings = await loadListings();
 
 function json(res, status, payload) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -168,6 +170,19 @@ async function loadProducts() {
   return stored.map((p) => ({ ...p, seeded: p.seeded ?? seedIds.has(p.id) }));
 }
 
+async function loadListings() {
+  try {
+    return JSON.parse(await readFile(LISTINGS_PATH, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+    return {};
+  }
+}
+
+async function persistListings() {
+  await writeFile(LISTINGS_PATH, `${JSON.stringify(listings, null, 2)}\n`, 'utf8');
+}
+
 function slugify(name) {
   const base =
     name
@@ -221,7 +236,9 @@ async function handleDeleteProduct(res, id) {
 
   if (product.photo) await rm(path.join(PHOTO_DIR, product.photo.file), { force: true });
   products = products.filter((p) => p.id !== id);
+  delete listings[id];
   await persistProducts();
+  await persistListings();
 
   return json(res, 200, { products: products.map(publicProduct) });
 }
@@ -257,6 +274,17 @@ async function handleGenerate(req, res) {
 
   product.status = 'Done';
   await persistProducts();
+
+  listings[product.id] = {
+    title: result.listing.title,
+    description: result.listing.description,
+    bullets: result.listing.bullets,
+    seo_tags: result.listing.seo_tags,
+    model: result.usage.model,
+    stub: result.usage.stub,
+    updatedAt: new Date().toISOString()
+  };
+  await persistListings();
 
   const { spend, entries } = await traceState(6);
   return json(res, 200, {
@@ -403,6 +431,7 @@ const server = createServer(async (req, res) => {
       const { entries, total, spend } = await traceState(6);
       return json(res, 200, {
         products: products.map(publicProduct),
+        listings,
         trace: entries,
         traceTotal: total,
         spend,

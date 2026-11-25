@@ -106,9 +106,35 @@ function persistDraft() {
   if (!state.activeId) return;
   state.drafts[state.activeId] = {
     specs: els.specs.value,
-    ...readListing()
+    ...readListing(),
+    savedAt: Date.now()
   };
   writeDrafts();
+}
+
+/**
+ * Listings generated on the server win over a local draft unless that draft was
+ * edited more recently, so generated copy survives a restart and a clean browser.
+ */
+function syncServerListings(serverListings) {
+  let touched = false;
+  for (const [id, listing] of Object.entries(serverListings || {})) {
+    const serverTime = Date.parse(listing.updatedAt || '') || 0;
+    const draft = state.drafts[id];
+    const draftTime = Number(draft?.savedAt || 0);
+    if (!draft || draftTime < serverTime) {
+      state.drafts[id] = {
+        title: listing.title || '',
+        description: listing.description || '',
+        bullets: Array.isArray(listing.bullets) ? [...listing.bullets] : [],
+        tags: Array.isArray(listing.seo_tags) ? listing.seo_tags.join(', ') : '',
+        specs: draft?.specs,
+        savedAt: serverTime
+      };
+      touched = true;
+    }
+  }
+  if (touched) writeDrafts();
 }
 
 /** Save a generated listing against the product it was written for. */
@@ -118,7 +144,8 @@ function saveDraftFor(id, listing, specs) {
     description: listing.description || '',
     bullets: Array.isArray(listing.bullets) ? [...listing.bullets] : [],
     tags: Array.isArray(listing.tags) ? listing.tags.join(', ') : listing.tags || '',
-    specs
+    specs,
+    savedAt: Date.now()
   };
   writeDrafts();
 }
@@ -764,6 +791,7 @@ async function init() {
     state.spend = boot.spend;
     state.traceTotal = boot.traceTotal;
     state.shopify = boot.shopify || state.shopify;
+    syncServerListings(boot.listings || {});
 
     renderSpend();
     renderTrace(boot.trace, boot.traceTotal);

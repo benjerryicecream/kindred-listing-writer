@@ -34,6 +34,7 @@ No `npm install` step — there are zero dependencies. Node 22.9 or newer (the s
 - **Edits stick** — field edits are saved per product in `localStorage` as you type, and survive product switches and reloads.
 - **Cost meter** — running total against the $10 budget plus the $0.0006 / listing estimate, computed from `trace.jsonl`.
 - **Token trace** — every Generate click appends one JSON line to `trace.jsonl`; the panel shows the last call's tokens in / out and cost.
+- **Listings persist** — generated listings are stored server-side in `data/listings.json` and load back into the editor after a reload or a restart, so nothing has to be regenerated to save a draft.
 
 ## The token trace
 
@@ -61,6 +62,7 @@ kindred-listing-writer/
   public/styles.css
   data/products.seed.json  the five seeded products and their specs
   data/products.json   runtime queue state (gitignored, created on first run)
+  data/listings.json   last generated listing per product (gitignored)
   data/photos/         uploaded photos (gitignored)
   ember_prompt.md      the prompt and schema in readable form
   trace.jsonl          local token trace (gitignored)
