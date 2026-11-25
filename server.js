@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PER_LISTING_USD, MODEL_LABEL, generateListing, isStubMode, promptText } from './lib/ember.js';
 import { appendTrace, spendSummary, traceState } from './lib/trace.js';
+import { STORE, isShopifyConfigured, saveDraft, savedDrafts } from './lib/shopify.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -287,6 +288,11 @@ const server = createServer(async (req, res) => {
         trace: entries,
         traceTotal: total,
         spend,
+        shopify: {
+          configured: isShopifyConfigured(),
+          store: STORE,
+          drafts: await savedDrafts()
+        },
         config: {
           budgetUsd: spend.budgetUsd,
           perListingUsd: PER_LISTING_USD,
@@ -306,6 +312,14 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && pathname === '/api/photo') return await handlePhoto(req, res);
 
     if (req.method === 'POST' && pathname === '/api/products') return await handleCreateProduct(req, res);
+
+    if (req.method === 'POST' && pathname === '/api/shopify/draft') {
+      const payload = JSON.parse((await readBody(req)) || '{}');
+      const product = products.find((p) => p.id === payload.productId);
+      if (!product) return json(res, 400, { error: 'Pick a product from the queue first.' });
+      const draft = await saveDraft({ productId: product.id, listing: payload.listing || {} });
+      return json(res, 200, { draft });
+    }
 
     if (req.method === 'DELETE' && pathname.startsWith('/api/products/')) {
       const id = decodeURIComponent(pathname.slice('/api/products/'.length));

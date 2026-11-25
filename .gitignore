@@ -9,6 +9,9 @@ data/photos/
 # Runtime queue state — seeded from data/products.seed.json on first run
 data/products.json
 
+# Local product id → Shopify draft id map
+data/shopify-drafts.json
+
 # Token trace — kept on disk as hackathon spend evidence, not published
 trace.jsonl
 

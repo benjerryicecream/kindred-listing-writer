@@ -664,6 +664,18 @@ textarea:focus {
   color: var(--muted);
 }
 
+.pending a,
+.pending-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pending a:hover,
+.pending-link:hover {
+  text-decoration: underline;
+}
+
 .kbd-hint {
   font-size: 11px;
   color: #a9a29a;

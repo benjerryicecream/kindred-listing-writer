@@ -40,6 +40,7 @@ const els = {
   tags: document.getElementById('tags'),
   generate: document.getElementById('generate'),
   saveDraft: document.getElementById('save-draft'),
+  shopifyHint: document.getElementById('shopify-hint'),
   status: document.getElementById('status'),
   traceLast: document.getElementById('trace-last'),
   traceList: document.getElementById('trace-list'),
@@ -54,6 +55,7 @@ const state = {
   trace: [],
   traceTotal: 0,
   spend: { totalUsd: 0, calls: 0, budgetUsd: 10 },
+  shopify: { configured: false, store: '', drafts: {} },
   busy: false
 };
 
@@ -227,6 +229,33 @@ function fillListing(listing) {
   els.tags.value = Array.isArray(listing.tags) ? listing.tags.join(', ') : listing.tags || '';
   renderBullets(Array.isArray(listing.bullets) ? listing.bullets : []);
   updateTitleCount();
+  updateShopifyButton();
+}
+
+function updateShopifyButton() {
+  const hasListing = els.title.value.trim().length > 0;
+  els.saveDraft.disabled = !state.shopify.configured || !hasListing || !state.activeId;
+  els.saveDraft.title = state.shopify.configured
+    ? 'Creates a draft product in Shopify. Never publishes.'
+    : 'Add SHOPIFY_ADMIN_TOKEN to .env to enable this';
+
+  if (!state.shopify.configured) {
+    els.shopifyHint.textContent = 'needs SHOPIFY_ADMIN_TOKEN';
+    els.shopifyHint.classList.remove('pending-link');
+    return;
+  }
+
+  const saved = state.activeId ? state.shopify.drafts[state.activeId] : null;
+  if (saved && els.title.value.trim()) {
+    const link = el('a', 'pending-link', 'view draft in Shopify');
+    link.href = saved.adminUrl;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    els.shopifyHint.replaceChildren(link);
+  } else {
+    els.shopifyHint.textContent = 'drafts only · never publishes';
+    els.shopifyHint.classList.remove('pending-link');
+  }
 }
 
 function updateTitleCount() {
@@ -329,6 +358,7 @@ function selectProduct(id) {
   fillListing(draft ?? {});
   renderPhoto(product);
   renderQueue();
+  updateShopifyButton();
   setStatus('');
 }
 
@@ -489,6 +519,48 @@ async function generateListing() {
   }
 }
 
+async function saveShopifyDraft() {
+  if (!state.activeId || els.saveDraft.disabled) return;
+  const listing = readListing();
+  const payload = {
+    productId: state.activeId,
+    listing: {
+      title: listing.title,
+      description: listing.description,
+      bullets: listing.bullets,
+      tags: listing.tags.split(',').map((t) => t.trim()).filter(Boolean)
+    }
+  };
+
+  els.saveDraft.disabled = true;
+  const label = els.saveDraft.textContent;
+  els.saveDraft.textContent = 'Saving…';
+  setStatus('Saving a draft in Shopify…');
+
+  try {
+    const res = await fetch('/api/shopify/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Shopify save failed (HTTP ${res.status})`);
+
+    const draft = data.draft;
+    state.shopify.drafts[state.activeId] = { gid: draft.gid, adminUrl: draft.adminUrl };
+    setStatus(
+      `${draft.created ? 'Draft created' : 'Draft updated'} in Shopify · ${draft.gid} · status ${draft.status} — not published.`,
+      'ok'
+    );
+    updateShopifyButton();
+  } catch (err) {
+    setStatus(explainError(err), 'error');
+    updateShopifyButton();
+  } finally {
+    els.saveDraft.textContent = label || 'Save as Shopify draft';
+  }
+}
+
 async function removePhoto() {
   if (!state.activeId) return;
   try {
@@ -605,6 +677,7 @@ async function deleteProduct(id) {
 
 els.title.addEventListener('input', () => {
   updateTitleCount();
+  updateShopifyButton();
   persistDraft();
 });
 els.description.addEventListener('input', persistDraft);
@@ -619,6 +692,7 @@ els.addBullet.addEventListener('click', () => {
 });
 
 els.generate.addEventListener('click', generateListing);
+els.saveDraft.addEventListener('click', saveShopifyDraft);
 
 els.addProduct.addEventListener('click', openAddDialog);
 els.addCancel.addEventListener('click', closeAddDialog);
@@ -690,6 +764,7 @@ async function init() {
     state.config = { ...state.config, ...boot.config };
     state.spend = boot.spend;
     state.traceTotal = boot.traceTotal;
+    state.shopify = boot.shopify || state.shopify;
 
     renderSpend();
     renderTrace(boot.trace, boot.traceTotal);
